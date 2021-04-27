@@ -1,0 +1,96 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'SSOSYNC Lambda as container'
+
+Parameters:
+  ImageName:
+    Type: String
+    Default: 'ssosync'
+  ImageTag:
+    Type: String
+
+Resources:
+  SSOSYNCSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+        GroupDescription: Allow http to client host
+        VpcId: vpc-0be1d590e7ab8b92b
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+        SecurityGroupEgress:
+        - IpProtocol: tcp
+          CidrIp: 0.0.0.0/0
+
+  SSOSYNCRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Ref ImageName
+      RepositoryPolicyText:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Sid: AllowPushPull
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action:
+              - "ecr:GetDownloadUrlForLayer"
+              - "ecr:BatchGetImage"
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:PutImage"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:UploadLayerPart"
+              - "ecr:CompleteLayerUpload"
+              - "ecr:DescribeImages"
+
+  SSOSYNCRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service role/AWSLambdaBasicExecutionRole
+
+  SSOSYNCFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageName}:${ImageTag}
+      Description: String
+      Environment:
+        Variables:
+          SSOSYNC_SCIM_ACCESS_TOKEN: SSOSYNC_SCIM_ACCESS_TOKEN
+          SSOSYNC_SCIM_ENDPOINT: SSOSYNC_SCIM_ENDPOINT
+      FunctionName: String
+      Handler: String
+      ImageConfig:
+        Command:
+          - '-d'
+          - '-g'
+          - 'name:dev*'
+          - '-u'
+          - 'peter@getwaave.io'
+        EntryPoint:
+          - '/var/task/ssosync'
+      KmsKeyArn: String
+      Layers:
+        - String
+      MemorySize: 1024
+      PackageType: Image
+      Role: !Ref SSOSYNCRole
+      Runtime: String
+      Timeout: 60
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt SSOSYNCSecurityGroup.GroupId
+        SubnetIds:
+          - subnet-0c90c16c9f409550b
+          - subnet-0f72233768075b2c8
+          - subnet-0a8c7ec3a6327113d
