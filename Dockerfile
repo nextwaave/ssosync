@@ -18,3 +18,6 @@ WORKDIR /var/task
 
 ADD entrypoint.sh .
 COPY --from=build /ssosync .
+
+ENTRYPOINT [ "/var/task/entrypoint.sh" ]
+CMD [ "/var/task/ssosync", "-d" ]

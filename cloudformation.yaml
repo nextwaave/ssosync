@@ -118,14 +118,10 @@ Resources:
       Environment:
         Variables:
           GROUP_MATCH: !Ref GroupMatch
-      ImageConfig:
-        Command:
-          - !Ref GoogleCredentials
-          - !Ref GoogleAdminEmail
-          - !Ref SCIMEndpointUrl
-          - !Ref SCIMEndpointAccessToken
-        EntryPoint:
-          - '/var/task/entrypoint.sh'
+          GOOGLECREDENTIALS: !Ref GoogleCredentials
+          GOOGLEADMINEMAIL: !Ref GoogleAdminEmail
+          SCIMENDPOINTURL: !Ref SCIMEndpointUrl
+          SCIMENDPOINTACCESSTOKEN: !Ref SCIMEndpointAccessToken
       MemorySize: 1024
       PackageType: Image
       Role: !GetAtt SSOSYNCRole.Arn
