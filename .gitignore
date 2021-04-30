@@ -21,6 +21,7 @@ token.json
 dist/
 main
 packaged.yaml
+parameters.json
 
 # IDE
 .idea/

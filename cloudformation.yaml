@@ -5,7 +5,7 @@ Parameters:
   ScheduleExpression:
     Type: String
     Description: Schedule for trigger the execution of ssosync (see CloudWatch schedule expressions)
-    Default: rate(15 minutes)
+    Default: rate(1 day)
   LogLevel:
     Type: String
     Description: Log level for Lambda function logging
@@ -25,90 +25,55 @@ Parameters:
     AllowedValues:
       - json
       - text
+  GroupMatch:
+    Type: String
+    Description: Group in Google LDAP to be synced across
+    Default: "name:dev*"
   GoogleCredentials:
     Type: String
     Description: Credentials to log into Google (content of credentials.json)
-    NoEcho: true
+    Default: "/global/ssosync/google-credentials"
   GoogleAdminEmail:
     Type: String
     Description: Google Admin email
-    NoEcho: true
+    Default: "/global/ssosync/google-admin-email"
   SCIMEndpointUrl:
     Type: String
     Description: AWS SSO SCIM Endpoint Url
-    NoEcho: true
+    Default: "/global/ssosync/scim-endpoint-url"
   SCIMEndpointAccessToken:
     Type: String
     Description: AWS SSO SCIM AccessToken
-    NoEcho: true
+    Default: "/global/ssosync/scim-endpoint-access-token"
   ImageName:
     Type: String
-    Default: 'ssosync'
+    Default: "ssosync"
   ImageTag:
     Type: String
+    Default: "latest"
+  VPC:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: '/tooling/vpc/id'
   Subnets:
     Type: AWS::SSM::Parameter::Value<String>
     Default: '/tooling/subnets/private'
 
 Resources:
-  AWSGoogleCredentialsSecret:
-    Type: "AWS::SecretsManager::Secret"
-    Properties:
-      Name: SSOSyncGoogleCredentials
-      SecretString: !Ref GoogleCredentials
-
-  AWSGoogleAdminEamil:
-    Type: "AWS::SecretsManager::Secret"
-    Properties:
-      Name: SSOSyncGoogleAdminEmail
-      SecretString: !Ref GoogleAdminEmail
-
-  AWSSCIMEndpointSecret: # This can be moved to custom provider
-    Type: "AWS::SecretsManager::Secret"
-    Properties:
-      Name: SSOSyncSCIMEndpointUrl
-      SecretString: !Ref SCIMEndpointUrl
-
-  AWSSCIMAccessTokenSecret: # This can be moved to custom provider
-    Type: "AWS::SecretsManager::Secret"
-    Properties:
-      Name: SSOSyncSCIMAccessToken
-      SecretString: !Ref SCIMEndpointAccessToken
-
   SSOSYNCSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
         GroupDescription: Allow http to client host
-        VpcId: vpc-0be1d590e7ab8b92b
-        SecurityGroupIngress:
-        - IpProtocol: tcp
-          CidrIp: 0.0.0.0/0
-        SecurityGroupEgress:
-        - IpProtocol: tcp
-          CidrIp: 0.0.0.0/0
+        VpcId: !Ref VPC
 
-  SSOSYNCRepo:
-    Type: AWS::ECR::Repository
+  SSOSYNCLogGroup:
+    Type: AWS::Logs::LogGroup
     Properties:
-      RepositoryName: !Ref ImageName
-      RepositoryPolicyText:
-        Version: "2012-10-17"
-        Statement:
-          -
-            Sid: AllowPushPull
-            Effect: Allow
-            Principal:
-              AWS:
-                - !Sub 'arn:aws:iam::${AWS::AccountId}:root'
-            Action:
-              - "ecr:GetDownloadUrlForLayer"
-              - "ecr:BatchGetImage"
-              - "ecr:BatchCheckLayerAvailability"
-              - "ecr:PutImage"
-              - "ecr:InitiateLayerUpload"
-              - "ecr:UploadLayerPart"
-              - "ecr:CompleteLayerUpload"
-              - "ecr:DescribeImages"
+      LogGroupName:
+        !Join
+          - ""
+          - - "/aws/lambda/"
+            - !Ref SSOSYNCFunction
+      RetentionInDays: 7
 
   SSOSYNCRole:
     Type: AWS::IAM::Role
@@ -121,7 +86,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::040059739494:policy/WAV-tooling-kms-decrypt
       Policies:
         - PolicyName: SSMGetParameterPolicy
           PolicyDocument:
@@ -129,12 +94,19 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - "secretsmanager:Get*"
-                Resource:
-                  - !Ref AWSGoogleCredentialsSecret
-                  - !Ref AWSGoogleAdminEamil
-                  - !Ref AWSSCIMEndpointSecret
-                  - !Ref AWSSCIMAccessTokenSecret
+                  - "ec2:DescribeNetworkInterfaces"
+                  - "ec2:CreateNetworkInterface"
+                  - "ec2:DeleteNetworkInterface"
+                  - "ec2:DescribeInstances"
+                  - "ec2:AttachNetworkInterface"
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "ssm:Get*"
+                  - "ssm:List*"
+                  - "ssm:Decrypt"
+                  - "ssm:Describe*"
+                Resource: "*"
 
   SSOSYNCFunction:
     Type: AWS::Lambda::Function
@@ -142,33 +114,21 @@ Resources:
       Code:
         ImageUri:
           !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageName}:${ImageTag}
-      Description: String
+      Description: "ssosync function"
       Environment:
         Variables:
-          SSOSYNC_LOG_LEVEL: !Ref LogLevel
-          SSOSYNC_LOG_FORMAT: !Ref LogFormat
-          SSOSYNC_GOOGLE_CREDENTIALS: !Ref AWSGoogleCredentialsSecret
-          SSOSYNC_GOOGLE_ADMIN: !Ref AWSGoogleAdminEamil
-          SSOSYNC_SCIM_ENDPOINT: !Ref AWSSCIMEndpointSecret
-          SSOSYNC_SCIM_ACCESS_TOKEN: !Ref AWSSCIMAccessTokenSecret
-      FunctionName: String
-      Handler: String
+          GROUP_MATCH: !Ref GroupMatch
       ImageConfig:
         Command:
-          - '-d'
-          - '-g'
-          - 'name:dev*'
-          - '-u'
-          - 'peter@getwaave.io'
+          - !Ref GoogleCredentials
+          - !Ref GoogleAdminEmail
+          - !Ref SCIMEndpointUrl
+          - !Ref SCIMEndpointAccessToken
         EntryPoint:
-          - '/var/task/ssosync'
-      KmsKeyArn: String
-      Layers:
-        - String
+          - '/var/task/entrypoint.sh'
       MemorySize: 1024
       PackageType: Image
-      Role: !Ref SSOSYNCRole
-      Runtime: String
+      Role: !GetAtt SSOSYNCRole.Arn
       Timeout: 60
       VpcConfig:
         SecurityGroupIds:
@@ -176,3 +136,21 @@ Resources:
         SubnetIds: !Split
           - ","
           - !Ref Subnets
+
+  ScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "ScheduledRule"
+      ScheduleExpression: !Ref ScheduleExpression
+      State: "ENABLED"
+      Targets:
+        - Arn: !GetAtt SSOSYNCFunction.Arn
+          Id: "DailySSOSyncRun"
+
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SSOSYNCFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt ScheduledRule.Arn
