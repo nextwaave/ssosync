@@ -10,14 +10,14 @@ ADD . .
 RUN go build -o /ssosync
 
 # copy artifacts to a clean image
-FROM amazon/aws-lambda-go:1.2021.04.16.22
+FROM public.ecr.aws/lambda/provided:al2
 
-RUN yum install -y aws-cli
+RUN yum install -y aws-cli golang
 
-WORKDIR /var/task
+ADD bootstrap /var/runtime/
 
-ADD entrypoint.sh .
-COPY --from=build /ssosync .
+# WORKDIR /var/task
+ADD entrypoint.sh /var/task/
+COPY --from=build /ssosync /var/task/
 
-ENTRYPOINT [ "/var/task/entrypoint.sh" ]
-CMD [ "/var/task/ssosync", "-d" ]
+CMD [ "/var/task/entrypoint.sh" ]

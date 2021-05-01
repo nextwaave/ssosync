@@ -9,4 +9,4 @@ export SSOSYNC_SCIM_ENDPOINT=$(aws ssm get-parameter --with-decryption --output 
 export SSOSYNC_SCIM_ACCESS_TOKEN=$(aws ssm get-parameter --with-decryption --output text --name ${SCIMENDPOINTACCESSTOKEN} --query Parameter.Value)
 export SSOSYNC_GROUP_MATCH=${GROUP_MATCH}
 
-exec "$@"
+/var/task/ssosync -d

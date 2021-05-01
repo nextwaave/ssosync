@@ -122,7 +122,7 @@ Resources:
           GOOGLEADMINEMAIL: !Ref GoogleAdminEmail
           SCIMENDPOINTURL: !Ref SCIMEndpointUrl
           SCIMENDPOINTACCESSTOKEN: !Ref SCIMEndpointAccessToken
-      MemorySize: 1024
+      MemorySize: 256
       PackageType: Image
       Role: !GetAtt SSOSYNCRole.Arn
       Timeout: 60
