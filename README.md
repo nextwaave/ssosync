@@ -16,6 +16,19 @@ SSO Sync will run on any platform that Go can build for. It is available in the 
 
 > 🤔 we hope to support other providers in the future
 
+## Waave build and deploy to AWS Lambda
+
+```
+aws ecr get-login-password --region ap-southeast-2 | docker login --username AWS --password-stdin 040059739494.dkr.ecr.ap-southeast-2.amazonaws.com
+
+docker build -t ssosync:latest .
+docker tag ssosync:latest 040059739494.dkr.ecr.ap-southeast-2.amazonaws.com/ssosync:latest
+docker push 040059739494.dkr.ecr.ap-southeast-2.amazonaws.com/ssosync:latest
+
+aws cloudformation delete-stack --stack-name waave-ssosync
+aws cloudformation deploy --template-file ./cloudformation.yaml  --stack-name waave-ssosync --capabilities CAPABILITY_IAM
+```
+
 ## Why?
 
 As per the [AWS SSO](https://aws.amazon.com/single-sign-on/) Homepage:
