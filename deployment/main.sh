@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -euo pipefail
+
 STACK_NAME="waave-ssosync"
 
 function deploy_ssosync() {
@@ -19,7 +21,7 @@ function destroy_ssosync() {
 }
 
 case $ACTION in
-  deploy)
+  apply)
     deploy_ssosync  
     ;;
   destroy)
