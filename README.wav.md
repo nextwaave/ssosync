@@ -1,4 +1,5 @@
 # Initial deployment without Jenkins
 
 1. Pull or build waave deployer container (container assumed to be named `deployer:local` for this documentation)
-2. Run `docker run -t --rm -v $(pwd):/project -v ${HOME}/.aws/:/home/ec2-user/.aws -e ACTION="apply" -e GROUP_PATTERN='name:nonprod-dev*' deployer:local` 
+2. Run `docker run -t --rm -v $(pwd):/project -v ${HOME}/.aws/:/home/ec2-user/.aws -e ACTION="apply" -e GROUP_PATTERN='name:nonprod-dev*' deployer:local`
+3. If you have AWSCLI installed and AWS credentials locally can run `ACTION="apply" GROUP_PATTERN='name:nonprod-dev*' ./deployment/main.sh`
